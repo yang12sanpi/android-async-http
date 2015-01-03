@@ -1,5 +1,10 @@
 apply plugin: 'com.android.library'
 
+dependencies {
+    compile group: 'org.apache.httpcomponents', name: 'httpclient-android', version: '4.3.5'
+    compile group: 'com.intellij', name: 'annotations', version: '12.0'
+}
+
 android {
     compileSdkVersion 21
     buildToolsVersion '21.1.2'

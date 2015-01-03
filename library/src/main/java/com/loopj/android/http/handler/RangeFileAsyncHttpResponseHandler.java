@@ -16,12 +16,13 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.handler;
 
 import android.util.Log;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
@@ -62,12 +63,12 @@ public abstract class RangeFileAsyncHttpResponseHandler extends FileAsyncHttpRes
                     sendFailureMessage(status.getStatusCode(), response.getAllHeaders(), null, new HttpResponseException(status.getStatusCode(), status.getReasonPhrase()));
             } else {
                 if (!Thread.currentThread().isInterrupted()) {
-                    Header header = response.getFirstHeader(AsyncHttpClient.HEADER_CONTENT_RANGE);
+                    Header header = response.getFirstHeader(HttpHeaders.CONTENT_RANGE);
                     if (header == null) {
                         append = false;
                         current = 0;
                     } else {
-                        Log.v(LOG_TAG, AsyncHttpClient.HEADER_CONTENT_RANGE + ": " + header.getValue());
+                        Log.v(LOG_TAG, HttpHeaders.CONTENT_RANGE + ": " + header.getValue());
                     }
                     sendSuccessMessage(status.getStatusCode(), response.getAllHeaders(), getResponseData(response.getEntity()));
                 }

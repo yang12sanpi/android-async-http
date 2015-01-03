@@ -20,12 +20,19 @@ package com.loopj.android.http;
 
 import android.content.Context;
 import android.os.Looper;
-import android.util.Log;
+
+import com.loopj.android.http.handler.AsyncHttpResponseHandler;
+import com.loopj.android.http.interfaces.AsyncHttpClientInterface;
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
+import com.loopj.android.http.util.Logger;
+import com.loopj.android.http.util.MySSLSocketFactory;
+import com.loopj.android.http.util.PreemtiveAuthorizationHttpRequestInterceptor;
 
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
@@ -42,10 +49,13 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.RedirectHandler;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBaseHC4;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpPutHC4;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.client.protocol.ClientContext;
@@ -69,6 +79,7 @@ import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.ExecutionContext;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.SyncBasicHttpContext;
+import org.apache.http.util.Asserts;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -94,7 +105,7 @@ import java.util.zip.GZIPInputStream;
  * The AsyncHttpClient can be used to make asynchronous GET, POST, PUT and DELETE HTTP requests in
  * your Android applications. Requests can be made with additional parameters by passing a {@link
  * RequestParams} instance, and responses can be handled by passing an anonymously overridden {@link
- * ResponseHandlerInterface} instance. <p>&nbsp;</p> For example: <p>&nbsp;</p>
+ * com.loopj.android.http.interfaces.ResponseHandlerInterface} instance. <p>&nbsp;</p> For example: <p>&nbsp;</p>
  * <pre>
  * AsyncHttpClient client = new AsyncHttpClient();
  * client.get("http://www.google.com", new AsyncHttpResponseHandler() {
@@ -111,36 +122,30 @@ import java.util.zip.GZIPInputStream;
  * });
  * </pre>
  *
- * @see com.loopj.android.http.AsyncHttpResponseHandler
- * @see com.loopj.android.http.ResponseHandlerInterface
+ * @see com.loopj.android.http.handler.AsyncHttpResponseHandler
+ * @see com.loopj.android.http.interfaces.ResponseHandlerInterface
  * @see com.loopj.android.http.RequestParams
  */
-public class AsyncHttpClient {
+public class AsyncHttpClient implements AsyncHttpClientInterface {
 
     public static final String LOG_TAG = "AsyncHttpClient";
 
-    public static final String HEADER_CONTENT_TYPE = "Content-Type";
-    public static final String HEADER_CONTENT_RANGE = "Content-Range";
-    public static final String HEADER_CONTENT_ENCODING = "Content-Encoding";
     public static final String HEADER_CONTENT_DISPOSITION = "Content-Disposition";
-    public static final String HEADER_ACCEPT_ENCODING = "Accept-Encoding";
     public static final String ENCODING_GZIP = "gzip";
 
     public static final int DEFAULT_MAX_CONNECTIONS = 10;
+    private int maxConnections = DEFAULT_MAX_CONNECTIONS;
     public static final int DEFAULT_SOCKET_TIMEOUT = 10 * 1000;
+    private int connectTimeout = DEFAULT_SOCKET_TIMEOUT;
+    private int responseTimeout = DEFAULT_SOCKET_TIMEOUT;
     public static final int DEFAULT_MAX_RETRIES = 5;
     public static final int DEFAULT_RETRY_SLEEP_TIME_MILLIS = 1500;
     public static final int DEFAULT_SOCKET_BUFFER_SIZE = 8192;
-
-    private int maxConnections = DEFAULT_MAX_CONNECTIONS;
-    private int connectTimeout = DEFAULT_SOCKET_TIMEOUT;
-    private int responseTimeout = DEFAULT_SOCKET_TIMEOUT;
-
     private final DefaultHttpClient httpClient;
     private final HttpContext httpContext;
-    private ExecutorService threadPool;
     private final Map<Context, List<RequestHandle>> requestMap;
     private final Map<String, String> clientHeaderMap;
+    private ExecutorService threadPool;
     private boolean isUrlEncodingEnabled = true;
 
     /**
@@ -181,44 +186,6 @@ public class AsyncHttpClient {
     }
 
     /**
-     * Returns default instance of SchemeRegistry
-     *
-     * @param fixNoHttpResponseException Whether to fix issue or not, by omitting SSL verification
-     * @param httpPort                   HTTP port to be used, must be greater than 0
-     * @param httpsPort                  HTTPS port to be used, must be greater than 0
-     */
-    private static SchemeRegistry getDefaultSchemeRegistry(boolean fixNoHttpResponseException, int httpPort, int httpsPort) {
-        if (fixNoHttpResponseException) {
-            Log.d(LOG_TAG, "Beware! Using the fix is insecure, as it doesn't verify SSL certificates.");
-        }
-
-        if (httpPort < 1) {
-            httpPort = 80;
-            Log.d(LOG_TAG, "Invalid HTTP port number specified, defaulting to 80");
-        }
-
-        if (httpsPort < 1) {
-            httpsPort = 443;
-            Log.d(LOG_TAG, "Invalid HTTPS port number specified, defaulting to 443");
-        }
-
-        // Fix to SSL flaw in API < ICS
-        // See https://code.google.com/p/android/issues/detail?id=13117
-        SSLSocketFactory sslSocketFactory;
-        if (fixNoHttpResponseException) {
-            sslSocketFactory = MySSLSocketFactory.getFixedSocketFactory();
-        } else {
-            sslSocketFactory = SSLSocketFactory.getSocketFactory();
-        }
-
-        SchemeRegistry schemeRegistry = new SchemeRegistry();
-        schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), httpPort));
-        schemeRegistry.register(new Scheme("https", sslSocketFactory, httpsPort));
-
-        return schemeRegistry;
-    }
-
-    /**
      * Creates a new AsyncHttpClient.
      *
      * @param schemeRegistry SchemeRegistry to be used
@@ -239,7 +206,7 @@ public class AsyncHttpClient {
         HttpProtocolParams.setVersion(httpParams, HttpVersion.HTTP_1_1);
 
         ClientConnectionManager cm = createConnectionManager(schemeRegistry, httpParams);
-        Utils.asserts(cm != null, "Custom implementation of #createConnectionManager(SchemeRegistry, BasicHttpParams) returned null");
+        Asserts.notNull(cm, "Custom implementation of #createConnectionManager(SchemeRegistry, BasicHttpParams) returned null");
 
         threadPool = getDefaultThreadPool();
         requestMap = Collections.synchronizedMap(new WeakHashMap<Context, List<RequestHandle>>());
@@ -250,13 +217,13 @@ public class AsyncHttpClient {
         httpClient.addRequestInterceptor(new HttpRequestInterceptor() {
             @Override
             public void process(HttpRequest request, HttpContext context) {
-                if (!request.containsHeader(HEADER_ACCEPT_ENCODING)) {
-                    request.addHeader(HEADER_ACCEPT_ENCODING, ENCODING_GZIP);
+                if (!request.containsHeader(HttpHeaders.ACCEPT_ENCODING)) {
+                    request.addHeader(HttpHeaders.ACCEPT_ENCODING, ENCODING_GZIP);
                 }
                 for (String header : clientHeaderMap.keySet()) {
                     if (request.containsHeader(header)) {
                         Header overwritten = request.getFirstHeader(header);
-                        Log.d(LOG_TAG,
+                        Logger.d(LOG_TAG,
                                 String.format("Headers were overwritten! (%s | %s) overwrites (%s | %s)",
                                         header, clientHeaderMap.get(header),
                                         overwritten.getName(), overwritten.getValue())
@@ -311,6 +278,44 @@ public class AsyncHttpClient {
         httpClient.setHttpRequestRetryHandler(new RetryHandler(DEFAULT_MAX_RETRIES, DEFAULT_RETRY_SLEEP_TIME_MILLIS));
     }
 
+    /**
+     * Returns default instance of SchemeRegistry
+     *
+     * @param fixNoHttpResponseException Whether to fix issue or not, by omitting SSL verification
+     * @param httpPort                   HTTP port to be used, must be greater than 0
+     * @param httpsPort                  HTTPS port to be used, must be greater than 0
+     */
+    private static SchemeRegistry getDefaultSchemeRegistry(boolean fixNoHttpResponseException, int httpPort, int httpsPort) {
+        if (fixNoHttpResponseException) {
+            Logger.d(LOG_TAG, "Beware! Using the fix is insecure, as it doesn't verify SSL certificates.");
+        }
+
+        if (httpPort < 1) {
+            httpPort = 80;
+            Logger.d(LOG_TAG, "Invalid HTTP port number specified, defaulting to 80");
+        }
+
+        if (httpsPort < 1) {
+            httpsPort = 443;
+            Logger.d(LOG_TAG, "Invalid HTTPS port number specified, defaulting to 443");
+        }
+
+        // Fix to SSL flaw in API < ICS
+        // See https://code.google.com/p/android/issues/detail?id=13117
+        SSLSocketFactory sslSocketFactory;
+        if (fixNoHttpResponseException) {
+            sslSocketFactory = MySSLSocketFactory.getFixedSocketFactory();
+        } else {
+            sslSocketFactory = SSLSocketFactory.getSocketFactory();
+        }
+
+        SchemeRegistry schemeRegistry = new SchemeRegistry();
+        schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), httpPort));
+        schemeRegistry.register(new Scheme("https", sslSocketFactory, httpsPort));
+
+        return schemeRegistry;
+    }
+
     public static void allowRetryExceptionClass(Class<?> cls) {
         if (cls != null) {
             RetryHandler.addClassToWhitelist(cls);
@@ -320,6 +325,124 @@ public class AsyncHttpClient {
     public static void blockRetryExceptionClass(Class<?> cls) {
         if (cls != null) {
             RetryHandler.addClassToBlacklist(cls);
+        }
+    }
+
+    /**
+     * Will encode url, if not disabled, and adds params on the end of it
+     *
+     * @param url             String with URL, should be valid URL without params
+     * @param params          RequestParams to be appended on the end of URL
+     * @param shouldEncodeUrl whether url should be encoded (replaces spaces with %20)
+     * @return encoded url if requested with params appended if any available
+     */
+    public static String getUrlWithQueryString(boolean shouldEncodeUrl, String url, RequestParams params) {
+        if (url == null)
+            return null;
+
+        if (shouldEncodeUrl) {
+            try {
+                String decodedURL = URLDecoder.decode(url, "UTF-8");
+                URL _url = new URL(decodedURL);
+                URI _uri = new URI(_url.getProtocol(), _url.getUserInfo(), _url.getHost(), _url.getPort(), _url.getPath(), _url.getQuery(), _url.getRef());
+                url = _uri.toASCIIString();
+            } catch (Exception ex) {
+                // Should not really happen, added just for sake of validity
+                Logger.e(LOG_TAG, "getUrlWithQueryString encoding URL", ex);
+            }
+        }
+
+        if (params != null) {
+            // Construct the query string and trim it, in case it
+            // includes any excessive white spaces.
+            String paramString = params.getParamString().trim();
+
+            // Only add the query string if it isn't empty and it
+            // isn't equal to '?'.
+            if (!paramString.equals("") && !paramString.equals("?")) {
+                url += url.contains("?") ? "&" : "?";
+                url += paramString;
+            }
+        }
+
+        return url;
+    }
+
+    /**
+     * Checks the InputStream if it contains  GZIP compressed data
+     *
+     * @param inputStream InputStream to be checked
+     * @return true or false if the stream contains GZIP compressed data
+     * @throws java.io.IOException
+     */
+    public static boolean isInputStreamGZIPCompressed(final PushbackInputStream inputStream) throws IOException {
+        if (inputStream == null)
+            return false;
+
+        byte[] signature = new byte[2];
+        int readStatus = inputStream.read(signature);
+        inputStream.unread(signature);
+        int streamHeader = ((int) signature[0] & 0xff) | ((signature[1] << 8) & 0xff00);
+        return readStatus == 2 && GZIPInputStream.GZIP_MAGIC == streamHeader;
+    }
+
+    /**
+     * A utility function to close an input stream without raising an exception.
+     *
+     * @param is input stream to close safely
+     */
+    public static void silentCloseInputStream(InputStream is) {
+        try {
+            if (is != null) {
+                is.close();
+            }
+        } catch (IOException e) {
+            Logger.w(LOG_TAG, "Cannot close input stream", e);
+        }
+    }
+
+    /**
+     * A utility function to close an output stream without raising an exception.
+     *
+     * @param os output stream to close safely
+     */
+    public static void silentCloseOutputStream(OutputStream os) {
+        try {
+            if (os != null) {
+                os.close();
+            }
+        } catch (IOException e) {
+            Logger.w(LOG_TAG, "Cannot close output stream", e);
+        }
+    }
+
+    /**
+     * This horrible hack is required on Android, due to implementation of BasicManagedEntity, which
+     * doesn't chain call consumeContent on underlying wrapped HttpEntity
+     *
+     * @param entity HttpEntity, may be null
+     */
+    public static void endEntityViaReflection(HttpEntity entity) {
+        if (entity instanceof HttpEntityWrapper) {
+            try {
+                Field f = null;
+                Field[] fields = HttpEntityWrapper.class.getDeclaredFields();
+                for (Field ff : fields) {
+                    if (ff.getName().equals("wrappedEntity")) {
+                        f = ff;
+                        break;
+                    }
+                }
+                if (f != null) {
+                    f.setAccessible(true);
+                    HttpEntity wrapped = (HttpEntity) f.get(entity);
+                    if (wrapped != null) {
+                        wrapped.consumeContent();
+                    }
+                }
+            } catch (Throwable t) {
+                Logger.e(LOG_TAG, "wrappedEntity consume", t);
+            }
         }
     }
 
@@ -348,10 +471,20 @@ public class AsyncHttpClient {
      * Sets an optional CookieStore to use when making requests
      *
      * @param cookieStore The CookieStore implementation to use, usually an instance of {@link
-     *                    PersistentCookieStore}
+     *                    com.loopj.android.http.util.PersistentCookieStore}
      */
     public void setCookieStore(CookieStore cookieStore) {
         httpContext.setAttribute(ClientContext.COOKIE_STORE, cookieStore);
+    }
+
+    /**
+     * Returns the current executor service used. By default, Executors.newCachedThreadPool() is
+     * used.
+     *
+     * @return current executor service used
+     */
+    public ExecutorService getThreadPool() {
+        return threadPool;
     }
 
     /**
@@ -363,16 +496,6 @@ public class AsyncHttpClient {
      */
     public void setThreadPool(ExecutorService threadPool) {
         this.threadPool = threadPool;
-    }
-
-    /**
-     * Returns the current executor service used. By default, Executors.newCachedThreadPool() is
-     * used.
-     *
-     * @return current executor service used
-     */
-    public ExecutorService getThreadPool() {
-        return threadPool;
     }
 
     /**
@@ -396,7 +519,7 @@ public class AsyncHttpClient {
     }
 
     /**
-     * Simple interface method, to enable or disable redirects. If you set manually RedirectHandler
+     * Simple interfaces method, to enable or disable redirects. If you set manually RedirectHandler
      * on underlying HttpClient, effects of this method will be canceled. <p>&nbsp;</p> Default
      * setting is to disallow redirects.
      *
@@ -434,7 +557,7 @@ public class AsyncHttpClient {
      * your needs
      *
      * @param customRedirectHandler RedirectHandler instance
-     * @see com.loopj.android.http.MyRedirectHandler
+     * @see com.loopj.android.http.util.MyRedirectHandler
      */
     public void setRedirectHandler(final RedirectHandler customRedirectHandler) {
         httpClient.setRedirectHandler(customRedirectHandler);
@@ -449,7 +572,6 @@ public class AsyncHttpClient {
     public void setUserAgent(String userAgent) {
         HttpProtocolParams.setUserAgent(this.httpClient.getParams(), userAgent);
     }
-
 
     /**
      * Returns current limit of parallel connections
@@ -671,11 +793,13 @@ public class AsyncHttpClient {
 
     public void setCredentials(AuthScope authScope, Credentials credentials) {
         if (credentials == null) {
-            Log.d(LOG_TAG, "Provided credentials are null, not setting");
+            Logger.d(LOG_TAG, "Provided credentials are null, not setting");
             return;
         }
         this.httpClient.getCredentialsProvider().setCredentials(authScope == null ? AuthScope.ANY : authScope, credentials);
     }
+
+    // [+] HTTP HEAD
 
     /**
      * Sets HttpRequestInterceptor which handles authorization in preemtive way, as workaround you
@@ -720,7 +844,7 @@ public class AsyncHttpClient {
      */
     public void cancelRequests(final Context context, final boolean mayInterruptIfRunning) {
         if (context == null) {
-            Log.e(LOG_TAG, "Passed null Context to cancelRequests");
+            Logger.e(LOG_TAG, "Passed null Context to cancelRequests");
             return;
         }
         Runnable r = new Runnable() {
@@ -762,7 +886,8 @@ public class AsyncHttpClient {
         requestMap.clear();
     }
 
-    // [+] HTTP HEAD
+    // [-] HTTP HEAD
+    // [+] HTTP GET
 
     /**
      * Perform a HTTP HEAD request, without any parameters.
@@ -831,8 +956,8 @@ public class AsyncHttpClient {
                 context);
     }
 
-    // [-] HTTP HEAD
-    // [+] HTTP GET
+    // [-] HTTP GET
+    // [+] HTTP POST
 
     /**
      * Perform a HTTP GET request, without any parameters.
@@ -901,9 +1026,6 @@ public class AsyncHttpClient {
                 context);
     }
 
-    // [-] HTTP GET
-    // [+] HTTP POST
-
     /**
      * Perform a HTTP POST request, without any parameters.
      *
@@ -914,6 +1036,9 @@ public class AsyncHttpClient {
     public RequestHandle post(String url, ResponseHandlerInterface responseHandler) {
         return post(null, url, null, responseHandler);
     }
+
+    // [-] HTTP POST
+    // [+] HTTP PUT
 
     /**
      * Perform a HTTP POST request with parameters.
@@ -1001,9 +1126,6 @@ public class AsyncHttpClient {
         return sendRequest(httpClient, httpContext, request, contentType, responseHandler, context);
     }
 
-    // [-] HTTP POST
-    // [+] HTTP PUT
-
     /**
      * Perform a HTTP PUT request, without any parameters.
      *
@@ -1074,10 +1196,13 @@ public class AsyncHttpClient {
      * @return RequestHandle of future request process
      */
     public RequestHandle put(Context context, String url, Header[] headers, HttpEntity entity, String contentType, ResponseHandlerInterface responseHandler) {
-        HttpEntityEnclosingRequestBase request = addEntityToRequestBase(new HttpPut(URI.create(url).normalize()), entity);
+        HttpEntityEnclosingRequestBase request = addEntityToRequestBase(new HttpPutHC4(URI.create(url).normalize()), entity);
         if (headers != null) request.setHeaders(headers);
         return sendRequest(httpClient, httpContext, request, contentType, responseHandler, context);
     }
+
+    // [-] HTTP PUT
+    // [+] HTTP DELETE
 
     /**
      * Perform a HTTP PATCH request, without any parameters.
@@ -1148,8 +1273,7 @@ public class AsyncHttpClient {
         return sendRequest(httpClient, httpContext, request, contentType, responseHandler, context);
     }
 
-    // [-] HTTP PUT
-    // [+] HTTP DELETE
+    // [-] HTTP DELETE
 
     /**
      * Perform a HTTP DELETE request.
@@ -1218,8 +1342,6 @@ public class AsyncHttpClient {
         return sendRequest(httpClient, httpContext, httpDelete, null, responseHandler, context);
     }
 
-    // [-] HTTP DELETE
-
     /**
      * Instantiate a new asynchronous HTTP request for the passed parameters.
      *
@@ -1263,9 +1385,9 @@ public class AsyncHttpClient {
 
         if (contentType != null) {
             if (uriRequest instanceof HttpEntityEnclosingRequestBase && ((HttpEntityEnclosingRequestBase) uriRequest).getEntity() != null) {
-                Log.w(LOG_TAG, "Passed contentType will be ignored because HttpEntity sets content type");
+                Logger.w(LOG_TAG, "Passed contentType will be ignored because HttpEntity sets content type");
             } else {
-                uriRequest.setHeader(HEADER_CONTENT_TYPE, contentType);
+                uriRequest.setHeader(HttpHeaders.CONTENT_TYPE, contentType);
             }
         }
 
@@ -1310,94 +1432,6 @@ public class AsyncHttpClient {
     }
 
     /**
-     * Will encode url, if not disabled, and adds params on the end of it
-     *
-     * @param url             String with URL, should be valid URL without params
-     * @param params          RequestParams to be appended on the end of URL
-     * @param shouldEncodeUrl whether url should be encoded (replaces spaces with %20)
-     * @return encoded url if requested with params appended if any available
-     */
-    public static String getUrlWithQueryString(boolean shouldEncodeUrl, String url, RequestParams params) {
-        if (url == null)
-            return null;
-
-        if (shouldEncodeUrl) {
-            try {
-                String decodedURL = URLDecoder.decode(url, "UTF-8");
-                URL _url = new URL(decodedURL);
-                URI _uri = new URI(_url.getProtocol(), _url.getUserInfo(), _url.getHost(), _url.getPort(), _url.getPath(), _url.getQuery(), _url.getRef());
-                url = _uri.toASCIIString();
-            } catch (Exception ex) {
-                // Should not really happen, added just for sake of validity
-                Log.e(LOG_TAG, "getUrlWithQueryString encoding URL", ex);
-            }
-        }
-
-        if (params != null) {
-            // Construct the query string and trim it, in case it
-            // includes any excessive white spaces.
-            String paramString = params.getParamString().trim();
-
-            // Only add the query string if it isn't empty and it
-            // isn't equal to '?'.
-            if (!paramString.equals("") && !paramString.equals("?")) {
-                url += url.contains("?") ? "&" : "?";
-                url += paramString;
-            }
-        }
-
-        return url;
-    }
-
-    /**
-     * Checks the InputStream if it contains  GZIP compressed data
-     *
-     * @param inputStream InputStream to be checked
-     * @return true or false if the stream contains GZIP compressed data
-     * @throws java.io.IOException
-     */
-    public static boolean isInputStreamGZIPCompressed(final PushbackInputStream inputStream) throws IOException {
-        if (inputStream == null)
-            return false;
-
-        byte[] signature = new byte[2];
-        int readStatus = inputStream.read(signature);
-        inputStream.unread(signature);
-        int streamHeader = ((int) signature[0] & 0xff) | ((signature[1] << 8) & 0xff00);
-        return readStatus == 2 && GZIPInputStream.GZIP_MAGIC == streamHeader;
-    }
-
-    /**
-     * A utility function to close an input stream without raising an exception.
-     *
-     * @param is input stream to close safely
-     */
-    public static void silentCloseInputStream(InputStream is) {
-        try {
-            if (is != null) {
-                is.close();
-            }
-        } catch (IOException e) {
-            Log.w(LOG_TAG, "Cannot close input stream", e);
-        }
-    }
-
-    /**
-     * A utility function to close an output stream without raising an exception.
-     *
-     * @param os output stream to close safely
-     */
-    public static void silentCloseOutputStream(OutputStream os) {
-        try {
-            if (os != null) {
-                os.close();
-            }
-        } catch (IOException e) {
-            Log.w(LOG_TAG, "Cannot close output stream", e);
-        }
-    }
-
-    /**
      * Returns HttpEntity containing data from RequestParams included with request declaration.
      * Allows also passing progress from upload via provided ResponseHandler
      *
@@ -1433,7 +1467,7 @@ public class AsyncHttpClient {
      * @param entity      entity to be included within the request
      * @param requestBase HttpRequest instance, must not be null
      */
-    private HttpEntityEnclosingRequestBase addEntityToRequestBase(HttpEntityEnclosingRequestBase requestBase, HttpEntity entity) {
+    private HttpEntityEnclosingRequestBaseHC4 addEntityToRequestBase(HttpEntityEnclosingRequestBaseHC4 requestBase, HttpEntity entity) {
         if (entity != null) {
             requestBase.setEntity(entity);
         }
@@ -1442,47 +1476,17 @@ public class AsyncHttpClient {
     }
 
     /**
-     * This horrible hack is required on Android, due to implementation of BasicManagedEntity, which
-     * doesn't chain call consumeContent on underlying wrapped HttpEntity
-     *
-     * @param entity HttpEntity, may be null
-     */
-    public static void endEntityViaReflection(HttpEntity entity) {
-        if (entity instanceof HttpEntityWrapper) {
-            try {
-                Field f = null;
-                Field[] fields = HttpEntityWrapper.class.getDeclaredFields();
-                for (Field ff : fields) {
-                    if (ff.getName().equals("wrappedEntity")) {
-                        f = ff;
-                        break;
-                    }
-                }
-                if (f != null) {
-                    f.setAccessible(true);
-                    HttpEntity wrapped = (HttpEntity) f.get(entity);
-                    if (wrapped != null) {
-                        wrapped.consumeContent();
-                    }
-                }
-            } catch (Throwable t) {
-                Log.e(LOG_TAG, "wrappedEntity consume", t);
-            }
-        }
-    }
-
-    /**
      * Enclosing entity to hold stream of gzip decoded data for accessing HttpEntity contents
      */
     private static class InflatingEntity extends HttpEntityWrapper {
 
-        public InflatingEntity(HttpEntity wrapped) {
-            super(wrapped);
-        }
-
         InputStream wrappedStream;
         PushbackInputStream pushbackStream;
         GZIPInputStream gzippedStream;
+
+        public InflatingEntity(HttpEntity wrapped) {
+            super(wrapped);
+        }
 
         @Override
         public InputStream getContent() throws IOException {

@@ -7,7 +7,7 @@ import android.content.IntentFilter;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.RequestHandle;
-import com.loopj.android.http.ResponseHandlerInterface;
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
 import com.loopj.android.http.sample.services.ExampleIntentService;
 import com.loopj.android.http.sample.util.IntentUtil;
 

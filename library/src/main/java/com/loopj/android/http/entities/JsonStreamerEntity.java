@@ -16,12 +16,19 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.entities;
 
-import android.util.Log;
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.RequestParams;
+import com.loopj.android.http.base64.Base64;
+import com.loopj.android.http.base64.Base64OutputStream;
+import com.loopj.android.http.interfaces.JsonValueInterface;
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
+import com.loopj.android.http.util.Logger;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
 import org.apache.http.message.BasicHeader;
 
 import java.io.FileInputStream;
@@ -66,12 +73,12 @@ public class JsonStreamerEntity implements HttpEntity {
 
     private static final Header HEADER_JSON_CONTENT =
             new BasicHeader(
-                    AsyncHttpClient.HEADER_CONTENT_TYPE,
+                    HttpHeaders.CONTENT_TYPE,
                     RequestParams.APPLICATION_JSON);
 
     private static final Header HEADER_GZIP_ENCODING =
             new BasicHeader(
-                    AsyncHttpClient.HEADER_CONTENT_ENCODING,
+                    HttpHeaders.CONTENT_ENCODING,
                     AsyncHttpClient.ENCODING_GZIP);
 
     // JSON data and associated meta-data to be uploaded.
@@ -85,6 +92,71 @@ public class JsonStreamerEntity implements HttpEntity {
     public JsonStreamerEntity(ResponseHandlerInterface progressHandler, boolean useGZipCompression) {
         this.progressHandler = progressHandler;
         this.contentEncoding = useGZipCompression ? HEADER_GZIP_ENCODING : null;
+    }
+
+    // Curtosy of Simple-JSON: http://goo.gl/XoW8RF
+    // Changed a bit to suit our needs in this class.
+    static byte[] escape(String string) {
+        // If it's null, just return prematurely.
+        if (string == null) {
+            return JSON_NULL;
+        }
+
+        // Surround with quotations.
+        BUILDER.append('"');
+
+        int length = string.length(), pos = -1;
+        while (++pos < length) {
+            char ch = string.charAt(pos);
+            switch (ch) {
+                case '"':
+                    BUILDER.append("\\\"");
+                    break;
+                case '\\':
+                    BUILDER.append("\\\\");
+                    break;
+                case '\b':
+                    BUILDER.append("\\b");
+                    break;
+                case '\f':
+                    BUILDER.append("\\f");
+                    break;
+                case '\n':
+                    BUILDER.append("\\n");
+                    break;
+                case '\r':
+                    BUILDER.append("\\r");
+                    break;
+                case '\t':
+                    BUILDER.append("\\t");
+                    break;
+                default:
+                    // Reference: http://www.unicode.org/versions/Unicode5.1.0/
+                    if ((ch >= '\u0000' && ch <= '\u001F') || (ch >= '\u007F' && ch <= '\u009F') || (ch >= '\u2000' && ch <= '\u20FF')) {
+                        String intString = Integer.toHexString(ch);
+                        BUILDER.append("\\u");
+                        int intLength = 4 - intString.length();
+                        for (int zero = 0; zero < intLength; zero++) {
+                            BUILDER.append('0');
+                        }
+                        BUILDER.append(intString.toUpperCase(Locale.US));
+                    } else {
+                        BUILDER.append(ch);
+                    }
+                    break;
+            }
+        }
+
+        // Surround with quotations.
+        BUILDER.append('"');
+
+        try {
+            return BUILDER.toString().getBytes();
+        } finally {
+            // Empty the String buffer.
+            // This is 20-30% faster than instantiating a new object.
+            BUILDER.setLength(0);
+        }
     }
 
     /**
@@ -221,7 +293,7 @@ public class JsonStreamerEntity implements HttpEntity {
         long elapsedTime = System.currentTimeMillis() - now;
         os.write((elapsedTime + "}").getBytes());
 
-        Log.i(LOG_TAG, "Uploaded JSON in " + Math.floor(elapsedTime / 1000) + " seconds");
+        Logger.i(LOG_TAG, "Uploaded JSON in " + Math.floor(elapsedTime / 1000) + " seconds");
 
         // Flush the contents up the stream.
         os.flush();
@@ -311,70 +383,5 @@ public class JsonStreamerEntity implements HttpEntity {
 
     private void endMetaData(OutputStream os) throws IOException {
         os.write('"');
-    }
-
-    // Curtosy of Simple-JSON: http://goo.gl/XoW8RF
-    // Changed a bit to suit our needs in this class.
-    static byte[] escape(String string) {
-        // If it's null, just return prematurely.
-        if (string == null) {
-            return JSON_NULL;
-        }
-
-        // Surround with quotations.
-        BUILDER.append('"');
-
-        int length = string.length(), pos = -1;
-        while (++pos < length) {
-            char ch = string.charAt(pos);
-            switch (ch) {
-                case '"':
-                    BUILDER.append("\\\"");
-                    break;
-                case '\\':
-                    BUILDER.append("\\\\");
-                    break;
-                case '\b':
-                    BUILDER.append("\\b");
-                    break;
-                case '\f':
-                    BUILDER.append("\\f");
-                    break;
-                case '\n':
-                    BUILDER.append("\\n");
-                    break;
-                case '\r':
-                    BUILDER.append("\\r");
-                    break;
-                case '\t':
-                    BUILDER.append("\\t");
-                    break;
-                default:
-                    // Reference: http://www.unicode.org/versions/Unicode5.1.0/
-                    if ((ch >= '\u0000' && ch <= '\u001F') || (ch >= '\u007F' && ch <= '\u009F') || (ch >= '\u2000' && ch <= '\u20FF')) {
-                        String intString = Integer.toHexString(ch);
-                        BUILDER.append("\\u");
-                        int intLength = 4 - intString.length();
-                        for (int zero = 0; zero < intLength; zero++) {
-                            BUILDER.append('0');
-                        }
-                        BUILDER.append(intString.toUpperCase(Locale.US));
-                    } else {
-                        BUILDER.append(ch);
-                    }
-                    break;
-            }
-        }
-
-        // Surround with quotations.
-        BUILDER.append('"');
-
-        try {
-            return BUILDER.toString().getBytes();
-        } finally {
-            // Empty the String buffer.
-            // This is 20-30% faster than instantiating a new object.
-            BUILDER.setLength(0);
-        }
     }
 }

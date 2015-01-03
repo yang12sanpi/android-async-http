@@ -14,20 +14,18 @@
  * limitations under the License.
  */
 
-package com.loopj.android.http;
+package com.loopj.android.http.base64;
 
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
 public class Base64OutputStream extends FilterOutputStream {
+    private static byte[] EMPTY = new byte[0];
     private final Base64.Coder coder;
     private final int flags;
-
     private byte[] buffer = null;
     private int bpos = 0;
-
-    private static byte[] EMPTY = new byte[0];
 
     /**
      * Performs Base64 encoding on the data written to the stream, writing the encoded data to

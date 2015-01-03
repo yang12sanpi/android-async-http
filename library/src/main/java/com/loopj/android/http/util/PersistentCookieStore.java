@@ -16,7 +16,7 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.util;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -38,10 +38,10 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A persistent cookie store which implements the Apache HttpClient {@link CookieStore} interface.
+ * A persistent cookie store which implements the Apache HttpClient {@link CookieStore} interfaces.
  * Cookies are stored and will persist on the user's device between application sessions since they
  * are serialized and stored in {@link SharedPreferences}. <p>&nbsp;</p> Instances of this class are
- * designed to be used with {@link AsyncHttpClient#setCookieStore}, but can also be used with a
+ * designed to be used with {@link com.loopj.android.http.AsyncHttpClient#setCookieStore}, but can also be used with a
  * regular old apache HttpClient/HttpContext if you prefer.
  */
 public class PersistentCookieStore implements CookieStore {
@@ -49,10 +49,9 @@ public class PersistentCookieStore implements CookieStore {
     private static final String COOKIE_PREFS = "CookiePrefsFile";
     private static final String COOKIE_NAME_STORE = "names";
     private static final String COOKIE_NAME_PREFIX = "cookie_";
-    private boolean omitNonPersistentCookies = false;
-
     private final ConcurrentHashMap<String, Cookie> cookies;
     private final SharedPreferences cookiePrefs;
+    private boolean omitNonPersistentCookies = false;
 
     /**
      * Construct a persistent cookie store.
@@ -187,7 +186,7 @@ public class PersistentCookieStore implements CookieStore {
             ObjectOutputStream outputStream = new ObjectOutputStream(os);
             outputStream.writeObject(cookie);
         } catch (IOException e) {
-            Log.d(LOG_TAG, "IOException in encodeCookie", e);
+            Logger.d(LOG_TAG, "IOException in encodeCookie", e);
             return null;
         }
 
@@ -208,9 +207,9 @@ public class PersistentCookieStore implements CookieStore {
             ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
             cookie = ((SerializableCookie) objectInputStream.readObject()).getCookie();
         } catch (IOException e) {
-            Log.d(LOG_TAG, "IOException in decodeCookie", e);
+            Logger.d(LOG_TAG, "IOException in decodeCookie", e);
         } catch (ClassNotFoundException e) {
-            Log.d(LOG_TAG, "ClassNotFoundException in decodeCookie", e);
+            Logger.d(LOG_TAG, "ClassNotFoundException in decodeCookie", e);
         }
 
         return cookie;

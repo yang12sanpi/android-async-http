@@ -21,9 +21,9 @@ package com.loopj.android.http.sample;
 import android.util.Log;
 
 import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.FileAsyncHttpResponseHandler;
+import com.loopj.android.http.handler.FileAsyncHttpResponseHandler;
 import com.loopj.android.http.RequestHandle;
-import com.loopj.android.http.ResponseHandlerInterface;
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
 import com.loopj.android.http.sample.util.FileUtil;
 
 import org.apache.http.Header;

@@ -16,7 +16,7 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.interfaces;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -94,18 +94,18 @@ public interface ResponseHandlerInterface {
     public URI getRequestURI();
 
     /**
-     * Returns Header[] which were used to request
-     *
-     * @return headers from origin request
-     */
-    public Header[] getRequestHeaders();
-
-    /**
      * Helper for handlers to receive Request URI info
      *
      * @param requestURI claimed request URI
      */
     public void setRequestURI(URI requestURI);
+
+    /**
+     * Returns Header[] which were used to request
+     *
+     * @return headers from origin request
+     */
+    public Header[] getRequestHeaders();
 
     /**
      * Helper for handlers to receive Request Header[] info
@@ -115,13 +115,6 @@ public interface ResponseHandlerInterface {
     public void setRequestHeaders(Header[] requestHeaders);
 
     /**
-     * Can set, whether the handler should be asynchronous or synchronous
-     *
-     * @param useSynchronousMode whether data should be handled on background Thread on UI Thread
-     */
-    void setUseSynchronousMode(boolean useSynchronousMode);
-
-    /**
      * Returns whether the handler is asynchronous or synchronous
      *
      * @return boolean if the ResponseHandler is running in synchronous mode
@@ -129,12 +122,11 @@ public interface ResponseHandlerInterface {
     boolean getUseSynchronousMode();
 
     /**
-     * Sets whether the handler should be executed on the pool's thread or the
-     * UI thread
+     * Can set, whether the handler should be asynchronous or synchronous
      *
-     * @param usePoolThread if the ResponseHandler should run on pool's thread
+     * @param useSynchronousMode whether data should be handled on background Thread on UI Thread
      */
-    void setUsePoolThread(boolean usePoolThread);
+    void setUseSynchronousMode(boolean useSynchronousMode);
 
     /**
      * Returns whether the handler should be executed on the pool's thread
@@ -143,6 +135,14 @@ public interface ResponseHandlerInterface {
      * @return boolean if the ResponseHandler should run on pool's thread
      */
     boolean getUsePoolThread();
+
+    /**
+     * Sets whether the handler should be executed on the pool's thread or the
+     * UI thread
+     *
+     * @param usePoolThread if the ResponseHandler should run on pool's thread
+     */
+    void setUsePoolThread(boolean usePoolThread);
 
     /**
      * This method is called once by the system when the response is about to be

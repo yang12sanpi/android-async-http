@@ -3,9 +3,9 @@ package com.loopj.android.http.sample;
 import android.util.Log;
 
 import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.RangeFileAsyncHttpResponseHandler;
+import com.loopj.android.http.handler.RangeFileAsyncHttpResponseHandler;
 import com.loopj.android.http.RequestHandle;
-import com.loopj.android.http.ResponseHandlerInterface;
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;

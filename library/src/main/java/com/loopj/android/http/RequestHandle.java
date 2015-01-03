@@ -20,12 +20,14 @@ package com.loopj.android.http;
 
 import android.os.Looper;
 
+import com.loopj.android.http.interfaces.RequestHandleInterface;
+
 import java.lang.ref.WeakReference;
 
 /**
  * A Handle to an AsyncRequest which can be used to cancel a running request.
  */
-public class RequestHandle {
+public class RequestHandle implements RequestHandleInterface {
     private final WeakReference<AsyncHttpRequest> request;
 
     public RequestHandle(AsyncHttpRequest request) {

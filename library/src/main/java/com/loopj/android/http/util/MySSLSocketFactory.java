@@ -16,7 +16,7 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.util;
 
 import org.apache.http.HttpVersion;
 import org.apache.http.conn.ClientConnectionManager;
@@ -83,23 +83,6 @@ public class MySSLSocketFactory extends SSLSocketFactory {
         };
 
         sslContext.init(null, new TrustManager[]{tm}, null);
-    }
-
-    @Override
-    public Socket createSocket(Socket socket, String host, int port, boolean autoClose) throws IOException {
-        return sslContext.getSocketFactory().createSocket(socket, host, port, autoClose);
-    }
-
-    @Override
-    public Socket createSocket() throws IOException {
-        return sslContext.getSocketFactory().createSocket();
-    }
-
-    /**
-     * Makes HttpsURLConnection trusts a set of certificates specified by the KeyStore
-     */
-    public void fixHttpsURLConnection() {
-        HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
     }
 
     /**
@@ -199,6 +182,23 @@ public class MySSLSocketFactory extends SSLSocketFactory {
         } catch (Exception e) {
             return new DefaultHttpClient();
         }
+    }
+
+    @Override
+    public Socket createSocket(Socket socket, String host, int port, boolean autoClose) throws IOException {
+        return sslContext.getSocketFactory().createSocket(socket, host, port, autoClose);
+    }
+
+    @Override
+    public Socket createSocket() throws IOException {
+        return sslContext.getSocketFactory().createSocket();
+    }
+
+    /**
+     * Makes HttpsURLConnection trusts a set of certificates specified by the KeyStore
+     */
+    public void fixHttpsURLConnection() {
+        HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
     }
 
 }

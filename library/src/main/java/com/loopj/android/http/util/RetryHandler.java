@@ -21,7 +21,7 @@
     fantastic droid-fu project: https://github.com/donnfelker/droid-fu
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.util;
 
 import android.os.SystemClock;
 
@@ -65,6 +65,14 @@ class RetryHandler implements HttpRequestRetryHandler {
         this.retrySleepTimeMS = retrySleepTimeMS;
     }
 
+    static void addClassToWhitelist(Class<?> cls) {
+        exceptionWhitelist.add(cls);
+    }
+
+    static void addClassToBlacklist(Class<?> cls) {
+        exceptionBlacklist.add(cls);
+    }
+
     @Override
     public boolean retryRequest(IOException exception, int executionCount, HttpContext context) {
         boolean retry = true;
@@ -101,14 +109,6 @@ class RetryHandler implements HttpRequestRetryHandler {
         }
 
         return retry;
-    }
-
-    static void addClassToWhitelist(Class<?> cls) {
-        exceptionWhitelist.add(cls);
-    }
-
-    static void addClassToBlacklist(Class<?> cls) {
-        exceptionBlacklist.add(cls);
     }
 
     protected boolean isInList(HashSet<Class<?>> list, Throwable error) {

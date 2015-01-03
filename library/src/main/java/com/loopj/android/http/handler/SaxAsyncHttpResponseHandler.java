@@ -16,9 +16,10 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.handler;
 
-import android.util.Log;
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.util.Logger;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -36,7 +37,7 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 /**
- * Provides interface to deserialize SAX responses, using AsyncHttpResponseHandler. Can be used like
+ * Provides interfaces to deserialize SAX responses, using AsyncHttpResponseHandler. Can be used like
  * this
  *
  * <pre>
@@ -56,15 +57,15 @@ import javax.xml.parsers.SAXParserFactory;
  *
  * @param <T> Handler extending {@link org.xml.sax.helpers.DefaultHandler}
  * @see org.xml.sax.helpers.DefaultHandler
- * @see com.loopj.android.http.AsyncHttpResponseHandler
+ * @see AsyncHttpResponseHandler
  */
 public abstract class SaxAsyncHttpResponseHandler<T extends DefaultHandler> extends AsyncHttpResponseHandler {
 
+    private final static String LOG_TAG = "SaxAsyncHttpResponseHandler";
     /**
      * Generic Type of handler
      */
     private T handler = null;
-    private final static String LOG_TAG = "SaxAsyncHttpResponseHandler";
 
     /**
      * Constructs new SaxAsyncHttpResponseHandler with given handler instance
@@ -102,9 +103,9 @@ public abstract class SaxAsyncHttpResponseHandler<T extends DefaultHandler> exte
                     inputStreamReader = new InputStreamReader(instream, DEFAULT_CHARSET);
                     rssReader.parse(new InputSource(inputStreamReader));
                 } catch (SAXException e) {
-                    Log.e(LOG_TAG, "getResponseData exception", e);
+                    Logger.e(LOG_TAG, "getResponseData exception", e);
                 } catch (ParserConfigurationException e) {
-                    Log.e(LOG_TAG, "getResponseData exception", e);
+                    Logger.e(LOG_TAG, "getResponseData exception", e);
                 } finally {
                     AsyncHttpClient.silentCloseInputStream(instream);
                     if (inputStreamReader != null) {

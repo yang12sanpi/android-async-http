@@ -20,8 +20,8 @@ package com.loopj.android.http.sample;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.RequestHandle;
-import com.loopj.android.http.ResponseHandlerInterface;
-import com.loopj.android.http.SaxAsyncHttpResponseHandler;
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
+import com.loopj.android.http.handler.SaxAsyncHttpResponseHandler;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;

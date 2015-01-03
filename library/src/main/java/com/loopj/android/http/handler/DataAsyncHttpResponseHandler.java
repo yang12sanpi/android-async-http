@@ -16,10 +16,12 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.handler;
 
 import android.os.Message;
-import android.util.Log;
+
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.util.Logger;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.util.ByteArrayBuffer;
@@ -28,9 +30,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public abstract class DataAsyncHttpResponseHandler extends AsyncHttpResponseHandler {
-    private static final String LOG_TAG = "DataAsyncHttpResponseHandler";
-
     protected static final int PROGRESS_DATA_MESSAGE = 7;
+    private static final String LOG_TAG = "DataAsyncHttpResponseHandler";
 
     /**
      * Creates a new AsyncHttpResponseHandler
@@ -40,14 +41,43 @@ public abstract class DataAsyncHttpResponseHandler extends AsyncHttpResponseHand
     }
 
     /**
+     * Copies elements from {@code original} into a new array, from indexes start (inclusive) to end
+     * (exclusive). The original order of elements is preserved. If {@code end} is greater than
+     * {@code original.length}, the result is padded with the value {@code (byte) 0}.
+     *
+     * @param original the original array
+     * @param start    the start index, inclusive
+     * @param end      the end index, exclusive
+     * @return the new array
+     * @throws ArrayIndexOutOfBoundsException if {@code start < 0 || start > original.length}
+     * @throws IllegalArgumentException       if {@code start > end}
+     * @throws NullPointerException           if {@code original == null}
+     * @see java.util.Arrays
+     * @since 1.6
+     */
+    public static byte[] copyOfRange(byte[] original, int start, int end) throws ArrayIndexOutOfBoundsException, IllegalArgumentException, NullPointerException {
+        if (start > end) {
+            throw new IllegalArgumentException();
+        }
+        int originalLength = original.length;
+        if (start < 0 || start > originalLength) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
+        int resultLength = end - start;
+        int copyLength = Math.min(resultLength, originalLength - start);
+        byte[] result = new byte[resultLength];
+        System.arraycopy(original, start, result, 0, copyLength);
+        return result;
+    }
+
+    /**
      * Fired when the request progress, override to handle in your own code
      *
      * @param responseBody response body received so far
      */
     public void onProgressData(byte[] responseBody) {
-        Log.d(LOG_TAG, "onProgressData(byte[]) was not overriden, but callback was received");
+        Logger.d(LOG_TAG, "onProgressData(byte[]) was not overriden, but callback was received");
     }
-
 
     final public void sendProgressDataMessage(byte[] responseBytes) {
         sendMessage(obtainMessage(PROGRESS_DATA_MESSAGE, new Object[]{responseBytes}));
@@ -66,10 +96,10 @@ public abstract class DataAsyncHttpResponseHandler extends AsyncHttpResponseHand
                     try {
                         onProgressData((byte[]) response[0]);
                     } catch (Throwable t) {
-                        Log.e(LOG_TAG, "custom onProgressData contains an error", t);
+                        Logger.e(LOG_TAG, "custom onProgressData contains an error", t);
                     }
                 } else {
-                    Log.e(LOG_TAG, "PROGRESS_DATA_MESSAGE didn't got enough params");
+                    Logger.e(LOG_TAG, "PROGRESS_DATA_MESSAGE didn't got enough params");
                 }
                 break;
         }
@@ -118,36 +148,6 @@ public abstract class DataAsyncHttpResponseHandler extends AsyncHttpResponseHand
             }
         }
         return responseBody;
-    }
-
-    /**
-     * Copies elements from {@code original} into a new array, from indexes start (inclusive) to end
-     * (exclusive). The original order of elements is preserved. If {@code end} is greater than
-     * {@code original.length}, the result is padded with the value {@code (byte) 0}.
-     *
-     * @param original the original array
-     * @param start    the start index, inclusive
-     * @param end      the end index, exclusive
-     * @return the new array
-     * @throws ArrayIndexOutOfBoundsException if {@code start < 0 || start > original.length}
-     * @throws IllegalArgumentException       if {@code start > end}
-     * @throws NullPointerException           if {@code original == null}
-     * @see java.util.Arrays
-     * @since 1.6
-     */
-    public static byte[] copyOfRange(byte[] original, int start, int end) throws ArrayIndexOutOfBoundsException, IllegalArgumentException, NullPointerException {
-        if (start > end) {
-            throw new IllegalArgumentException();
-        }
-        int originalLength = original.length;
-        if (start < 0 || start > originalLength) {
-            throw new ArrayIndexOutOfBoundsException();
-        }
-        int resultLength = end - start;
-        int copyLength = Math.min(resultLength, originalLength - start);
-        byte[] result = new byte[resultLength];
-        System.arraycopy(original, start, result, 0, copyLength);
-        return result;
     }
 }
 

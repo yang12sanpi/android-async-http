@@ -16,7 +16,7 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.util;
 
 import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.cookie.BasicClientCookie;
@@ -29,7 +29,7 @@ import java.util.Date;
 
 /**
  * A wrapper class around {@link Cookie} and/or {@link BasicClientCookie} designed for use in {@link
- * PersistentCookieStore}.
+ * com.loopj.android.http.util.PersistentCookieStore}.
  */
 public class SerializableCookie implements Serializable {
     private static final long serialVersionUID = 6374381828722046732L;

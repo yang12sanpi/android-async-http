@@ -20,6 +20,10 @@ package com.loopj.android.http;
 
 import android.util.Log;
 
+import com.loopj.android.http.handler.RangeFileAsyncHttpResponseHandler;
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
+import com.loopj.android.http.util.Utils;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpRequestRetryHandler;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -39,8 +43,8 @@ public class AsyncHttpRequest implements Runnable {
     private final HttpContext context;
     private final HttpUriRequest request;
     private final ResponseHandlerInterface responseHandler;
-    private int executionCount;
     private final AtomicBoolean isCancelled = new AtomicBoolean();
+    private int executionCount;
     private boolean cancelIsNotified;
     private volatile boolean isFinished;
     private boolean isRequestPreProcessed;
@@ -110,7 +114,7 @@ public class AsyncHttpRequest implements Runnable {
             if (!isCancelled()) {
                 responseHandler.sendFailureMessage(0, null, null, e);
             } else {
-                Log.e("AsyncHttpRequest", "makeRequestWithRetries returned error", e);
+                Logger.e("AsyncHttpRequest", "makeRequestWithRetries returned error", e);
             }
         }
 
@@ -204,7 +208,7 @@ public class AsyncHttpRequest implements Runnable {
             }
         } catch (Exception e) {
             // catch anything else to ensure failure message is propagated
-            Log.e("AsyncHttpRequest", "Unhandled exception origin cause", e);
+            Logger.e("AsyncHttpRequest", "Unhandled exception origin cause", e);
             cause = new IOException("Unhandled exception: " + e.getMessage());
         }
 

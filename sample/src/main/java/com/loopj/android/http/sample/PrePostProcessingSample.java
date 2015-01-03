@@ -23,9 +23,9 @@ import android.graphics.Color;
 import android.util.Log;
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpRequest;
-import com.loopj.android.http.AsyncHttpResponseHandler;
+import com.loopj.android.http.handler.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestHandle;
-import com.loopj.android.http.ResponseHandlerInterface;
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
 import java.util.Locale;
 
 import org.apache.http.Header;

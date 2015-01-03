@@ -20,6 +20,10 @@ package com.loopj.android.http;
 
 import android.util.Log;
 
+import com.loopj.android.http.interfaces.ResponseHandlerInterface;
+import com.loopj.android.http.entities.JsonStreamerEntity;
+import com.loopj.android.http.util.SimpleMultipartEntity;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -97,28 +101,14 @@ public class RequestParams implements Serializable {
             "application/json";
 
     protected final static String LOG_TAG = "RequestParams";
-    protected boolean isRepeatable;
-    protected boolean useJsonStreamer;
-    protected boolean autoCloseInputStreams;
     protected final ConcurrentHashMap<String, String> urlParams = new ConcurrentHashMap<String, String>();
     protected final ConcurrentHashMap<String, StreamWrapper> streamParams = new ConcurrentHashMap<String, StreamWrapper>();
     protected final ConcurrentHashMap<String, FileWrapper> fileParams = new ConcurrentHashMap<String, FileWrapper>();
     protected final ConcurrentHashMap<String, Object> urlParamsWithObjects = new ConcurrentHashMap<String, Object>();
+    protected boolean isRepeatable;
+    protected boolean useJsonStreamer;
+    protected boolean autoCloseInputStreams;
     protected String contentEncoding = HTTP.UTF_8;
-
-    /**
-     * Sets content encoding for return value of {@link #getParamString()} and {@link
-     * #createFormEntity()} <p>&nbsp;</p> Default encoding is "UTF-8"
-     *
-     * @param encoding String constant from {@link org.apache.http.protocol.HTTP}
-     */
-    public void setContentEncoding(final String encoding) {
-        if (encoding != null) {
-            this.contentEncoding = encoding;
-        } else {
-            Log.d(LOG_TAG, "setContentEncoding called with null attribute");
-        }
-    }
 
     /**
      * Constructs a new empty {@code RequestParams} instance.
@@ -170,6 +160,20 @@ public class RequestParams implements Serializable {
             String key = String.valueOf(keysAndValues[i]);
             String val = String.valueOf(keysAndValues[i + 1]);
             put(key, val);
+        }
+    }
+
+    /**
+     * Sets content encoding for return value of {@link #getParamString()} and {@link
+     * #createFormEntity()} <p>&nbsp;</p> Default encoding is "UTF-8"
+     *
+     * @param encoding String constant from {@link org.apache.http.protocol.HTTP}
+     */
+    public void setContentEncoding(final String encoding) {
+        if (encoding != null) {
+            this.contentEncoding = encoding;
+        } else {
+            Logger.d(LOG_TAG, "setContentEncoding called with null attribute");
         }
     }
 
@@ -488,7 +492,7 @@ public class RequestParams implements Serializable {
         try {
             return new UrlEncodedFormEntity(getParamsList(), contentEncoding);
         } catch (UnsupportedEncodingException e) {
-            Log.e(LOG_TAG, "createFormEntity failed", e);
+            Logger.e(LOG_TAG, "createFormEntity failed", e);
             return null; // Can happen, if the 'contentEncoding' won't be HTTP.UTF_8
         }
     }

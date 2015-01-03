@@ -16,9 +16,9 @@
     limitations under the License.
 */
 
-package com.loopj.android.http;
+package com.loopj.android.http.handler;
 
-import android.util.Log;
+import com.loopj.android.http.util.Logger;
 
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -87,7 +87,7 @@ public abstract class BaseJsonHttpResponseHandler<JSON_TYPE> extends TextHttpRes
                             }
                         });
                     } catch (final Throwable t) {
-                        Log.d(LOG_TAG, "parseResponse thrown an problem", t);
+                        Logger.d(LOG_TAG, "parseResponse thrown an problem", t);
                         postRunnable(new Runnable() {
                             @Override
                             public void run() {
@@ -123,7 +123,7 @@ public abstract class BaseJsonHttpResponseHandler<JSON_TYPE> extends TextHttpRes
                             }
                         });
                     } catch (Throwable t) {
-                        Log.d(LOG_TAG, "parseResponse thrown an problem", t);
+                        Logger.d(LOG_TAG, "parseResponse thrown an problem", t);
                         postRunnable(new Runnable() {
                             @Override
                             public void run() {
