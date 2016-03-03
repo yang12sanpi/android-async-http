@@ -1,4 +1,4 @@
-Android Async Http Client library
+Android Async Http Client library yes
 Copyright (c) 2011-2014 James Smith <james@loopj.com>
 http://loopj.com
 
